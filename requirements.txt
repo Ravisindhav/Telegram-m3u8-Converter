@@ -1,2 +1,1 @@
-pyrogram
-tgcrypto
+python-3.13.0
