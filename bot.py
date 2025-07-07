@@ -11,13 +11,11 @@ bot_token = os.environ['BOT_TOKEN']
 
 app = Client('m3u8', api_id, api_hash, bot_token=bot_token)
 
-
 @app.on_message(filters.command('start'))
 async def start(_, message):
     await message.reply(
         '''Send me a `.txt` file with m3u8 links (one per line). I’ll convert and send them as .mp4 videos.'''
     )
-
 
 @app.on_message(filters.document)
 async def txt_handler(client, message):
@@ -37,25 +35,29 @@ async def txt_handler(client, message):
 
         for link in links:
             try:
-                await downloading.edit(f"Converting:\n`{link}`")
-                filename = f'{message.from_user.id}_{int(time())}'
-                proc = await asyncio.create_subprocess_shell(
-                    f'ffmpeg -i "{link}" -c copy -bsf:a aac_adtstoasc {filename}.mp4',
+                await downloading.edit(f"Downloading via yt-dlp:\n`{link}`")
+                filename = f'{message.from_user.id}_{int(time())}.mp4'
+                
+                proc = await asyncio.create_subprocess_exec(
+                    'yt-dlp', '-o', filename, '-f', 'best', link,
                     stdout=PIPE,
                     stderr=PIPE
                 )
-                await proc.communicate()
-                
+                out, err = await proc.communicate()
+
+                if not os.path.exists(filename):
+                    raise Exception(f"yt-dlp failed\n{err.decode()}")
+
                 await downloading.edit("Generating thumbnail...")
                 await asyncio.create_subprocess_shell(
-                    f'ffmpeg -i {filename}.mp4 -ss 00:00:30.000 -vframes 1 {filename}.jpg',
+                    f'ffmpeg -i "{filename}" -ss 00:00:30.000 -vframes 1 "{filename}.jpg"',
                     stdout=PIPE,
                     stderr=PIPE
                 )
 
                 await downloading.edit("Getting duration...")
                 proc = await asyncio.create_subprocess_shell(
-                    f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {filename}.mp4',
+                    f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{filename}"',
                     stdout=PIPE,
                     stderr=STDOUT
                 )
@@ -65,13 +67,13 @@ async def txt_handler(client, message):
 
                 await client.send_video(
                     message.chat.id,
-                    f'{filename}.mp4',
+                    filename,
                     duration=int(float(duration.decode())),
                     thumb=f'{filename}.jpg',
                     caption=f'{filename}'
                 )
 
-                os.remove(f'{filename}.mp4')
+                os.remove(filename)
                 os.remove(f'{filename}.jpg')
 
             except Exception as e:
@@ -84,6 +86,5 @@ async def txt_handler(client, message):
     except Exception as e:
         print_exc()
         await message.reply("Something went wrong while handling your file.")
-
 
 app.run()
