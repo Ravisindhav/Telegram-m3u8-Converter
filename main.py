@@ -5,6 +5,7 @@ import asyncio
 from traceback import print_exc
 from subprocess import PIPE, STDOUT
 from time import time
+import sys
 
 api_id = int(os.environ['API_ID'])
 api_hash = os.environ['API_HASH']
@@ -15,8 +16,15 @@ app = Client('m3u8', api_id, api_hash, bot_token=bot_token)
 @app.on_message(filters.command('start'))
 async def start(_, message):
     await message.reply(
-        '''Send me a `.txt` file with m3u8 links (one per line, like `Title:URL`). I’ll convert and send them as .mp4 videos.'''
+        '''Send me a `.txt` file with m3u8 links (one per line, like `Title:URL`). I’ll convert and send them as .mp4 videos.\n\nSend /stop to shut down the bot.'''
     )
+
+# ✅ NEW: /stop command to safely shut down the bot (for Termux/VPS)
+@app.on_message(filters.command('stop'))
+async def stop_bot(_, message):
+    await message.reply("⛔ Bot is stopping...")
+    await app.stop()
+    sys.exit(0)
 
 @app.on_message(filters.document)
 async def txt_handler(client, message):
@@ -28,7 +36,6 @@ async def txt_handler(client, message):
         downloading = await message.reply("Reading your TXT file...")  
         file_path = await client.download_media(message=message)  
 
-        # ✅ Extract m3u8 URLs from "Title:URL" format  
         with open(file_path, 'r', encoding='utf-8') as f:  
             links = [line.strip().split(":", 1)[-1] for line in f if "http" in line]  
 
@@ -40,7 +47,6 @@ async def txt_handler(client, message):
                 await downloading.edit(f"Downloading via yt-dlp:\n`{link}`")  
                 filename = f'{message.from_user.id}_{int(time())}.mp4'  
 
-                # ✅ Removed `-f best` to avoid 404 errors  
                 proc = await asyncio.create_subprocess_exec(  
                     'yt-dlp', '-o', filename, link,  
                     stdout=PIPE,  
