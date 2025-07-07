@@ -29,7 +29,7 @@ async def txt_handler(client, message):
 
         file_path = await client.download_media(message=message)
 
-        # ✅ FIXED: Properly extract only the m3u8 URL
+        # ✅ Correctly extract m3u8 URLs from "Title:URL" format
         with open(file_path, 'r', encoding='utf-8') as f:
             links = [line.strip().split(":", 1)[-1] for line in f if "http" in line]
 
@@ -49,7 +49,7 @@ async def txt_handler(client, message):
                 out, err = await proc.communicate()
 
                 if not os.path.exists(filename):
-                    raise Exception(f"yt-dlp failed\n{err.decode()}")
+                    raise Exception(f"yt-dlp failed\n{err.decode()}\n{out.decode()}")
 
                 await downloading.edit("Generating thumbnail...")
                 await asyncio.create_subprocess_shell(
@@ -82,7 +82,7 @@ async def txt_handler(client, message):
             except Exception as e:
                 print("Error with link:", link)
                 print(e)
-                await message.reply(f"❌ Failed to process link:\n`{link}`")
+                await message.reply(f"❌ Failed to process link:\n`{link}`\n\n{e}")
 
         await downloading.edit("✅ All done.")
 
