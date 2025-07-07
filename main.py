@@ -15,7 +15,7 @@ app = Client('m3u8', api_id, api_hash, bot_token=bot_token)
 @app.on_message(filters.command('start'))
 async def start(_, message):
     await message.reply(
-        '''Send me a `.txt` file with m3u8 links (one per line). I’ll convert and send them as .mp4 videos.'''
+        '''Send me a `.txt` file with m3u8 links (one per line, like `Title:URL`). I’ll convert and send them as .mp4 videos.'''
     )
 
 @app.on_message(filters.document)
@@ -28,8 +28,10 @@ async def txt_handler(client, message):
         downloading = await message.reply("Reading your TXT file...")
 
         file_path = await client.download_media(message=message)
-        with open(file_path, 'r') as f:
-            links = [line.strip() for line in f if line.strip().startswith('http')]
+
+        # ✅ FIXED: Properly extract only the m3u8 URL
+        with open(file_path, 'r', encoding='utf-8') as f:
+            links = [line.strip().split(":", 1)[-1] for line in f if "http" in line]
 
         if not links:
             return await downloading.edit("No valid m3u8 links found in the file.")
